@@ -1,25 +1,29 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from alembic.config import Config
-from alembic import command
 import os
 
 from app.api.v1 import api_v1_router
 from app.core.config import settings
-from app.core.database import engine
-
+from app.core.database import engine, Base
 
 def run_migrations():
-    """Run pending Alembic migrations on startup."""
+    """Run Alembic migrations programmatically."""
     try:
-        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
-        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-        command.upgrade(alembic_cfg, "head")
-        print("✓ Database migrations applied successfully")
+        # Import models to register them
+        import app.models  # noqa: F401
+        
+        # Create all tables based on SQLAlchemy models
+        # This is the simplest approach - create tables from the ORM metadata
+        Base.metadata.create_all(bind=engine)
+        print("✓ Database tables created successfully from models")
     except Exception as e:
-        print(f"⚠ Migration warning: {e}")
+        print(f"⚠ Migration error: {e}")
+        import traceback
+        traceback.print_exc()
 
+# Run migrations before starting the app
+run_migrations()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -28,9 +32,6 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
-
-# Run migrations before starting the app
-run_migrations()
 
 # CORS middleware configuration
 app.add_middleware(
