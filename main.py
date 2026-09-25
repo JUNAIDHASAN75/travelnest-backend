@@ -1,10 +1,25 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from alembic.config import Config
+from alembic import command
+import os
 
 from app.api.v1 import api_v1_router
 from app.core.config import settings
 from app.core.database import engine
+
+
+def run_migrations():
+    """Run pending Alembic migrations on startup."""
+    try:
+        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+        command.upgrade(alembic_cfg, "head")
+        print("✓ Database migrations applied successfully")
+    except Exception as e:
+        print(f"⚠ Migration warning: {e}")
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -13,6 +28,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Run migrations before starting the app
+run_migrations()
 
 # CORS middleware configuration
 app.add_middleware(
